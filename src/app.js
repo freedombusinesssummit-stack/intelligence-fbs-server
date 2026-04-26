@@ -1,6 +1,7 @@
 import express from 'express';
 import leadRoutes from './routes/lead.routes.js';
 import tallyRoutes from './routes/tally.routes.js';
+import vapiRoutes from './routes/vapi.routes.js';
 
 import cors from 'cors';
 
@@ -18,5 +19,6 @@ app.get('/health', (req, res) => {
 });
 app.use('/api/leads', leadRoutes);
 app.use('/api/tally', tallyRoutes);
+app.use('/api/vapi', vapiRoutes);
 
 export default app;
