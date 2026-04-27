@@ -120,7 +120,7 @@ export const createLead = async (req, res) => {
 		const lead = {
 			Name: name,
 			'Phone number': phone,
-			'Add your company website': company || '',
+			Company: company || '',
 			'What is your nationality': nationality,
 			'What residency or citizenship program is appealing to you the most?':
 				jurisdiction,
