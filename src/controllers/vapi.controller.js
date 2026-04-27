@@ -1,38 +1,48 @@
 import axios from 'axios';
 
-const BASEROW_TOKEN = process.env.BASEROW_TOKEN;
-const TABLE_ID = process.env.BASEROW_TABLE_ID;
+const BASEROW_TOKEN = 'FdZLWlngmzIFcoORXGkWxroylbibm8C9';
+const TABLE_ID = 899262;
+
+const mapCallStatus = status => {
+	switch (status) {
+		case 'queued':
+		case 'ringing':
+		case 'in-progress':
+			return 'pending';
+		case 'completed':
+			return 'completed';
+		case 'no-answer':
+			return 'no_answer';
+		default:
+			return 'failed';
+	}
+};
 
 const getLeadStatus = callStatus => {
 	switch (callStatus) {
 		case 'completed':
-		case 'ended':
 			return 'Hot';
-		case 'no_answer':
-			return 'Cold';
-		case 'failed':
-		case 'busy':
-		case 'canceled':
-			return 'Lost';
+		case 'in-progress':
+			return 'Warm';
 		default:
-			return 'New';
+			return 'Cold';
 	}
 };
 
-export const handleVapiWebhook = async (req, res) => {
+export const vapiWebhook = async (req, res) => {
 	try {
-		console.log('🔥 VAPI WEBHOOK:', JSON.stringify(req.body, null, 2));
+		console.log('📩 VAPI WEBHOOK:', JSON.stringify(req.body, null, 2));
 
-		const call = req.body?.message?.call || req.body?.call || req.body;
-		const callId = call?.id;
-		const status = call?.status || req.body?.message?.status || '';
+		const call = req.body;
 
-		if (!callId) {
-			return res.status(400).json({ error: 'No call id' });
-		}
+		const callId = call.id;
+		const status = call.status;
 
-		const searchResponse = await axios.get(
-			`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/?user_field_names=true&search=${callId}`,
+		console.log('📞 CALL STATUS:', status);
+
+		// 🔎 ищем лид по callId
+		const findRes = await axios.get(
+			`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/?user_field_names=true&filter__field_Vapi Call ID__equal=${callId}`,
 			{
 				headers: {
 					Authorization: `Token ${BASEROW_TOKEN}`,
@@ -40,23 +50,22 @@ export const handleVapiWebhook = async (req, res) => {
 			},
 		);
 
-		const row = searchResponse.data.results?.find(
-			item => item['Vapi Call ID'] === callId,
-		);
+		const row = findRes.data.results[0];
 
 		if (!row) {
-			console.log('⚠️ Baserow row not found for call:', callId);
-			return res.status(200).json({ success: false });
+			console.log('❌ Lead not found by callId');
+			return res.sendStatus(200);
 		}
 
+		const mappedStatus = mapCallStatus(status);
+		const leadStatus = getLeadStatus(status);
+
+		// ✏️ обновляем лид
 		await axios.patch(
 			`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/${row.id}/?user_field_names=true`,
 			{
-				'Call Status': status,
-				'Lead Status': getLeadStatus(status),
-				'Call Outcome': req.body?.message?.endedReason || '',
-				'Call Duration': call?.duration || '',
-				'Call Date': new Date().toISOString(),
+				'Call Status': mappedStatus,
+				'Lead Status': leadStatus,
 			},
 			{
 				headers: {
@@ -66,12 +75,15 @@ export const handleVapiWebhook = async (req, res) => {
 			},
 		);
 
-		res.status(200).json({ success: true });
-	} catch (error) {
-		console.error(
-			'❌ VAPI WEBHOOK ERROR:',
-			error.response?.data || error.message,
-		);
-		res.status(500).json({ error: 'VAPI webhook error' });
+		console.log('✅ CALL UPDATED IN BASEROW');
+
+		// 🔥 лог результата разговора
+		console.log('🧠 SUMMARY:', call.analysis?.summary);
+		console.log('🗣 TRANSCRIPT:', call.transcript);
+
+		res.sendStatus(200);
+	} catch (err) {
+		console.error('❌ WEBHOOK ERROR:', err.message);
+		res.sendStatus(500);
 	}
 };

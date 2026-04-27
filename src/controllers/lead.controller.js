@@ -46,6 +46,56 @@ const normalizePhone = phone => {
 	return phone.replace(/\s+/g, '').replace(/[^+\d]/g, '');
 };
 
+// const sendToVapi = async lead => {
+// 	try {
+// 		const phone = normalizePhone(lead['Phone number']);
+
+// 		if (!phone) {
+// 			console.log('⚠️ VAPI SKIP: no phone');
+// 			return null;
+// 		}
+
+// 		console.log('📞 Sending to VAPI:', phone);
+
+// 		const response = await axios.post(
+// 			'https://api.vapi.ai/call',
+// 			{
+// 				assistantId: process.env.VAPI_ASSISTANT_ID,
+// 				phoneNumberId: process.env.VAPI_PHONE_ID,
+// 				customer: {
+// 					number: phone,
+// 					name: lead.Name || '',
+// 				},
+// 				metadata: {
+// 					name: lead.Name || '',
+// 					phone,
+// 					nationality: lead['What is your nationality'] || '',
+// 					program:
+// 						lead[
+// 							'What residency or citizenship program is appealing to you the most?'
+// 						] || '',
+// 					timeline:
+// 						lead['Are you actively considering relocating within 12 months?'] ||
+// 						'',
+// 					capital: lead['What is your annual capital'] || '',
+// 				},
+// 			},
+// 			{
+// 				headers: {
+// 					Authorization: `Bearer ${process.env.VAPI_API_KEY}`,
+// 					'Content-Type': 'application/json',
+// 				},
+// 			},
+// 		);
+
+// 		console.log('✅ VAPI SUCCESS:', response.data);
+// 		return response.data;
+// 	} catch (error) {
+// 		console.error('❌ VAPI ERROR:', error.response?.data || error.message);
+// 		return null;
+// 	}
+// };
+
 const sendToVapi = async lead => {
 	try {
 		const phone = normalizePhone(lead['Phone number']);
@@ -57,23 +107,41 @@ const sendToVapi = async lead => {
 
 		console.log('📞 Sending to VAPI:', phone);
 
+		const leadName = lead.Name || '';
+		const jurisdiction =
+			lead[
+				'What residency or citizenship program is appealing to you the most?'
+			] || '';
+
 		const response = await axios.post(
 			'https://api.vapi.ai/call',
 			{
-				assistantId: process.env.VAPI_ASSISTANT_ID,
+				// ✅ АГЕНТ JENNY
+				assistantId: 'dd0536e5-256f-4371-938e-c859b09d6d4f',
+
+				// 📞 твой номер в VAPI
 				phoneNumberId: process.env.VAPI_PHONE_ID,
+
+				// 👤 кому звоним
 				customer: {
 					number: phone,
-					name: lead.Name || '',
+					name: leadName,
 				},
+
+				// 🔥 ГЛАВНОЕ — переменные для скрипта
+				assistantOverrides: {
+					variableValues: {
+						lead_name: leadName,
+						jurisdiction: jurisdiction,
+					},
+				},
+
+				// 📊 доп данные (для логов / аналитики)
 				metadata: {
-					name: lead.Name || '',
+					name: leadName,
 					phone,
-					nationality: lead['What is your nationality'] || '',
-					program:
-						lead[
-							'What residency or citizenship program is appealing to you the most?'
-						] || '',
+					nationality: lead['What is your na tionality'] || '',
+					program: jurisdiction,
 					timeline:
 						lead['Are you actively considering relocating within 12 months?'] ||
 						'',
@@ -88,7 +156,11 @@ const sendToVapi = async lead => {
 			},
 		);
 
-		console.log('✅ VAPI SUCCESS:', response.data);
+		console.log('✅ VAPI SUCCESS:', {
+			id: response.data?.id,
+			status: response.data?.status,
+		});
+
 		return response.data;
 	} catch (error) {
 		console.error('❌ VAPI ERROR:', error.response?.data || error.message);
@@ -146,37 +218,24 @@ export const createLead = async (req, res) => {
 			message: 'Lead created',
 			data: baserowResponse.data,
 		});
+		const callData = await sendToVapi(lead);
 
-		sendToVapi(lead)
-			.then(async callData => {
-				if (!callData?.id) {
-					console.log('⚠️ No callId returned from VAPI');
-					return;
-				}
-
-				const callId = callData.id;
-				const callStatus = callData.status || 'queued';
-
-				await axios.patch(
-					`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/${rowId}/?user_field_names=true`,
-					{
-						'Vapi Call ID': callId,
-						'Call Status': mapCallStatus(callStatus),
-						'Lead Status': getLeadStatus(callStatus),
+		if (callData?.id) {
+			await axios.patch(
+				`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/${rowId}/?user_field_names=true`,
+				{
+					'Vapi Call ID': callData.id,
+				},
+				{
+					headers: {
+						Authorization: `Token ${BASEROW_TOKEN}`,
+						'Content-Type': 'application/json',
 					},
-					{
-						headers: {
-							Authorization: `Token ${BASEROW_TOKEN}`,
-							'Content-Type': 'application/json',
-						},
-					},
-				);
+				},
+			);
 
-				console.log('✅ BASEROW UPDATED WITH VAPI CALL ID');
-			})
-			.catch(err => {
-				console.error('🔥 VAPI BACKGROUND ERROR:', err.message);
-			});
+			console.log('✅ Call ID saved to Baserow');
+		}
 	} catch (error) {
 		console.error(
 			'❌ POST lead error:',
