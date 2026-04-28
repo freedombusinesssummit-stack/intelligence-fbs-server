@@ -1,15 +1,12 @@
 import axios from 'axios';
 
-const BASEROW_TOKEN = 'FdZLWlngmzIFcoORXGkWxroylbibm8C9';
-const TABLE_ID = 899262;
-
 export const getLeads = async () => {
 	try {
 		const res = await axios.get(
-			`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/?user_field_names=true`,
+			`https://api.baserow.io/api/database/rows/table/${process.env.BASEROW_TABLE_DEMO_ID}/?user_field_names=true`,
 			{
 				headers: {
-					Authorization: `Token ${BASEROW_TOKEN}`,
+					Authorization: `Token ${process.env.BASEROW_TOKEN}`,
 				},
 			},
 		);

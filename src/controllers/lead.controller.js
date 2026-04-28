@@ -1,9 +1,6 @@
 import * as leadService from '../services/lead.service.js';
 import axios from 'axios';
 
-const BASEROW_TOKEN = 'FdZLWlngmzIFcoORXGkWxroylbibm8C9';
-const TABLE_ID = 899262;
-
 const getLeadStatus = callStatus => {
 	switch (callStatus) {
 		case 'completed':
@@ -96,7 +93,7 @@ const normalizePhone = phone => {
 // 	}
 // };
 
-const sendToVapi = async lead => {
+const sendToVapi = async (lead, rowId) => {
 	try {
 		const phone = normalizePhone(lead['Phone number']);
 
@@ -140,12 +137,14 @@ const sendToVapi = async lead => {
 				metadata: {
 					name: leadName,
 					phone,
-					nationality: lead['What is your na tionality'] || '',
+					email: lead.email,
+					nationality: lead['What is your nationality'] || '',
 					program: jurisdiction,
 					timeline:
 						lead['Are you actively considering relocating within 12 months?'] ||
 						'',
 					capital: lead['What is your annual capital'] || '',
+					rowId: rowId,
 				},
 			},
 			{
@@ -181,6 +180,7 @@ export const createLead = async (req, res) => {
 	try {
 		const {
 			name,
+			email,
 			phone,
 			company,
 			nationality,
@@ -191,6 +191,7 @@ export const createLead = async (req, res) => {
 
 		const lead = {
 			Name: name,
+			Email: email,
 			'Phone number': phone,
 			Company: company || '',
 			'What is your nationality': nationality,
@@ -202,11 +203,11 @@ export const createLead = async (req, res) => {
 		};
 
 		const baserowResponse = await axios.post(
-			`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/?user_field_names=true`,
+			`https://api.baserow.io/api/database/rows/table/${process.env.BASEROW_TABLE_DEMO_ID}/?user_field_names=true`,
 			lead,
 			{
 				headers: {
-					Authorization: `Token ${BASEROW_TOKEN}`,
+					Authorization: `Token ${process.env.BASEROW_TOKEN}`,
 					'Content-Type': 'application/json',
 				},
 			},
@@ -218,17 +219,17 @@ export const createLead = async (req, res) => {
 			message: 'Lead created',
 			data: baserowResponse.data,
 		});
-		const callData = await sendToVapi(lead);
+		const callData = await sendToVapi(lead, rowId);
 
 		if (callData?.id) {
 			await axios.patch(
-				`https://api.baserow.io/api/database/rows/table/${TABLE_ID}/${rowId}/?user_field_names=true`,
+				`https://api.baserow.io/api/database/rows/table/${process.env.BASEROW_TABLE_DEMO_ID}/${rowId}/?user_field_names=true`,
 				{
 					'Vapi Call ID': callData.id,
 				},
 				{
 					headers: {
-						Authorization: `Token ${BASEROW_TOKEN}`,
+						Authorization: `Token ${process.env.BASEROW_TOKEN}`,
 						'Content-Type': 'application/json',
 					},
 				},
