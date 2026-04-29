@@ -251,3 +251,31 @@ export const createLead = async (req, res) => {
 		});
 	}
 };
+
+export const updateLeadStatus = async (req, res) => {
+	try {
+		const { id } = req.params;
+		const { status } = req.body;
+
+		const response = await axios.patch(
+			`https://api.baserow.io/api/database/rows/table/${process.env.BASEROW_TABLE_DEMO_ID}/${id}/?user_field_names=true`,
+			{
+				'Call Status': status.toLowerCase(),
+			},
+			{
+				headers: {
+					Authorization: `Token ${process.env.BASEROW_TOKEN}`,
+					'Content-Type': 'application/json',
+				},
+			},
+		);
+
+		res.json(response.data);
+	} catch (error) {
+		console.error(
+			'❌ UPDATE STATUS ERROR:',
+			error.response?.data || error.message,
+		);
+		res.status(500).json({ error: 'Failed to update status' });
+	}
+};
