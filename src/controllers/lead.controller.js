@@ -96,7 +96,7 @@ const normalizePhone = phone => {
 const sendToVapi = async (lead, rowId) => {
 	try {
 		const phone = normalizePhone(lead['Phone number']);
-
+		console.log(lead);
 		if (!phone) {
 			console.log('⚠️ VAPI SKIP: no phone');
 			return null;
@@ -118,7 +118,6 @@ const sendToVapi = async (lead, rowId) => {
 
 				// 📞 твой номер в VAPI
 				phoneNumberId: process.env.VAPI_PHONE_ID,
-
 				// 👤 кому звоним
 				customer: {
 					number: phone,
@@ -129,7 +128,13 @@ const sendToVapi = async (lead, rowId) => {
 				assistantOverrides: {
 					variableValues: {
 						lead_name: leadName,
+						company: lead.Company || '',
 						jurisdiction: jurisdiction,
+						annual_capital: lead['What is your annual capital'] || '',
+						timeline:
+							lead[
+								'Are you actively considering relocating within 12 months?'
+							] || '',
 					},
 				},
 
