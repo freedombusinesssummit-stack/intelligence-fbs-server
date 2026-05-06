@@ -181,6 +181,15 @@ export const getLeads = async (req, res) => {
 	}
 };
 
+export const getLeadsDemo = async (req, res) => {
+	try {
+		const leads = await leadService.getLeadsDemo();
+		res.json(leads);
+	} catch (e) {
+		res.status(500).json({ error: e.message });
+	}
+};
+
 export const createLead = async (req, res) => {
 	try {
 		const {
