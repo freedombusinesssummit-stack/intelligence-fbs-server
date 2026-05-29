@@ -117,7 +117,7 @@ export const vapiWebhook = async (req, res) => {
 			`${BASEROW_BASE}/${process.env.BASEROW_TABLE_DEMO_ID}/${rowId}/?user_field_names=true`,
 			{
 				'Call Status': callStatus,
-				'Lead Status': leadStatus,
+				Qualified: leadStatus,
 				'Call Duration': durationSec,
 				'Call Date': new Date().toISOString(),
 				'Call Outcome': summary.substring(0, 1000),

@@ -172,6 +172,16 @@ const sendToVapi = async (lead, rowId) => {
 	}
 };
 
+export const getLeadsByFormId = async (req, res) => {
+	try {
+		const { formId } = req.params;
+		const leads = await leadService.getLeadsByFormId(formId);
+		res.json(leads);
+	} catch (e) {
+		res.status(500).json({ error: e.message });
+	}
+};
+
 export const getLeads = async (req, res) => {
 	try {
 		const leads = await leadService.getLeads();
@@ -213,7 +223,8 @@ export const createLead = async (req, res) => {
 				jurisdiction,
 			'Are you actively considering relocating within 12 months?': timeline,
 			'What is your annual capital': capital,
-			'Lead Status': 'Cold',
+			'Lead Status': 'New',
+			Qualified: 'Cold',
 		};
 
 		const baserowResponse = await axios.post(
@@ -274,7 +285,7 @@ export const updateLeadStatus = async (req, res) => {
 		const response = await axios.patch(
 			`https://api.baserow.io/api/database/rows/table/${process.env.BASEROW_TABLE_DEMO_ID}/${id}/?user_field_names=true`,
 			{
-				'Call Status': status.toLowerCase(),
+				'Lead Status': status,
 			},
 			{
 				headers: {
@@ -290,6 +301,9 @@ export const updateLeadStatus = async (req, res) => {
 			'❌ UPDATE STATUS ERROR:',
 			error.response?.data || error.message,
 		);
-		res.status(500).json({ error: 'Failed to update status' });
+
+		res.status(500).json({
+			error: error.response?.data || error.message,
+		});
 	}
 };
